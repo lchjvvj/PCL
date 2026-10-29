@@ -11,6 +11,9 @@ Public Class FormMain
         Dim FeatureList As New List(Of KeyValuePair(Of Integer, String))
         '统计更新日志条目
         If BuildType = BuildTypes.Release Then
+            If LastVersion < 417 Then 'Release 2.99.0.2
+                FeatureList.Add(New KeyValuePair(Of Integer, String)(5, "删除：彻底移除 MC 下载与整合包安装功能"))
+            End If
             If LastVersion < 415 Then 'Release 2.99.0.1
                 FeatureList.Add(New KeyValuePair(Of Integer, String)(4, "删除：MC 下载功能相关入口"))
                 FeatureList.Add(New KeyValuePair(Of Integer, String)(1, "优化：为设置更新添加部分黑名单"))
@@ -107,6 +110,9 @@ Public Class FormMain
             '3：BUG+ IMP* FEAT-
             '2：BUG* IMP-
             '1：BUG-
+            If LastVersion < 418 Then 'Snapshot 2.99.0.2
+                FeatureList.Add(New KeyValuePair(Of Integer, String)(5, "删除：彻底移除 MC 下载与整合包安装功能"))
+            End If
             If LastVersion < 416 Then 'Snapshot 2.99.0.1
                 FeatureList.Add(New KeyValuePair(Of Integer, String)(4, "删除：MC 下载功能相关入口"))
                 FeatureList.Add(New KeyValuePair(Of Integer, String)(1, "优化：为设置更新添加部分黑名单"))
@@ -837,7 +843,7 @@ Public Class FormMain
                 FrmLaunchLeft.BtnCancel_Click()
                 Return
             End If
-            TriggerPageBack()
+            PageBack()
         End If
         '更改隐藏版本可见性
         If e.Key = Key.F11 AndAlso PageCurrent = FormMain.PageType.InstanceSelect Then
@@ -874,14 +880,7 @@ Public Class FormMain
     Private Sub FormMain_MouseDown(sender As Object, e As MouseButtonEventArgs) Handles Me.MouseDown
         '鼠标侧键返回上一级
         If FrmMain.PanMsg.Children.Count > 0 OrElse WaitingMyMsgBox.Any Then Return '弹窗中（#5513）
-        If e.ChangedButton = MouseButton.XButton1 OrElse e.ChangedButton = MouseButton.XButton2 Then TriggerPageBack()
-    End Sub
-    Private Sub TriggerPageBack()
-        If PageCurrent = PageType.Download AndAlso PageCurrentSub = PageSubType.DownloadInstall AndAlso FrmDownloadInstall.IsInSelectPage Then
-            FrmDownloadInstall.ExitSelectPage()
-        Else
-            PageBack()
-        End If
+        If e.ChangedButton = MouseButton.XButton1 OrElse e.ChangedButton = MouseButton.XButton2 Then PageBack()
     End Sub
 
     '切回窗口
@@ -973,7 +972,7 @@ Public Class FormMain
                         End If
                         Dim Target = If(PageCurrent = PageType.InstanceSetup, PageInstanceLeft.Instance, McInstanceSelected)
                         If Target Is Nothing Then
-                            Hint("请先下载游戏，再设置第三方登录！", HintType.Red)
+                            Hint("请先添加游戏版本，再设置第三方登录！", HintType.Red)
                             Return
                         End If
                         If AuthlibServer = "https://littleskin.cn/api/yggdrasil" Then
@@ -1075,23 +1074,6 @@ Public Class FormMain
             End If
             '安装 Mod
             If PageInstanceMod.InstallMods(PathList) Then Return
-            '安装整合包
-            If {"zip", "rar", "mrpack"}.Any(Function(t) t = Extension) Then '部分压缩包是 zip 格式但后缀为 rar，总之试一试
-                Hint("正在读取压缩包……")
-                Try
-                    Logger.Info("文件为压缩包，尝试作为整合包安装")
-                    ModpackInstall(FilePath)
-                    RunInUi(Sub() FrmMain.PageChange(FormMain.PageType.TaskManager))
-                    Return
-                Catch ex As Exception
-                    If RestrictMcDownload AndAlso ex.Message = "为遵守相关法律法规，PCL 不再提供 MC 下载功能，非常抱歉 qwq……" Then
-                        Hint(ex.Message, HintType.Red)
-                        Return
-                    End If
-                    If ex.IsCanceled Then Return
-                    '安装失败，继续往后尝试
-                End Try
-            End If
             'RAR 处理
             If Extension = "rar" Then
                 Hint("PCL 无法处理 rar 格式的压缩包，请在解压后重新压缩为 zip 格式再试！", HintType.Red)
@@ -1236,7 +1218,6 @@ Public Class FormMain
     ''' </summary>
     Public Enum PageSubType
         [Default] = 0
-        DownloadInstall = 0
         DownloadMod = 2
         DownloadPack = 3
         DownloadDataPack = 4
@@ -1377,7 +1358,7 @@ Public Class FormMain
             Select Case Stack.Page
                 Case PageType.Download
                     If FrmDownloadLeft Is Nothing Then FrmDownloadLeft = New PageDownloadLeft
-                    CType(FrmDownloadLeft.PanItem.Children(SubType), MyListItem).SetChecked(True, True, Stack = PageCurrent)
+                    FrmDownloadLeft.ItemCheck(SubType, Stack = PageCurrent)
                 Case PageType.Setup
                     If FrmSetupLeft Is Nothing Then FrmSetupLeft = New PageSetupLeft
                     CType(FrmSetupLeft.PanItem.Children(SubType), MyListItem).SetChecked(True, True, Stack = PageCurrent)
